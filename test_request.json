@@ -1,0 +1,11 @@
+{
+  "email": "test@example.com",
+  "secret": "amazing",
+  "task": "simple-calculator",
+  "round": 1,
+  "nonce": "test-001",
+  "brief": "Create a beautiful calculator web application with basic arithmetic operations (addition, subtraction, multiplication, division). Use modern design with a clean interface, buttons for numbers 0-9 and operators, a display screen, and make it responsive.",
+  "checks": ["functionality", "design", "responsive"],
+  "evaluation_url": "https://httpbin.org/post",
+  "attachments": ["Use CSS Grid or Flexbox for layout", "Add hover effects on buttons", "Include a clear button"]
+}
