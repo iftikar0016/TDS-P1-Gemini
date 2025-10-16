@@ -169,7 +169,11 @@ async def send_evaluation_with_retry(evaluation_url: str, payload: dict, timeout
     async with httpx.AsyncClient(timeout=30.0) as client:
         while datetime.now() < deadline:
             try:
-                response = await client.post(evaluation_url, json=payload)
+                response = await client.post(
+                    evaluation_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
                 
                 if response.status_code == 200:
                     print(f"✓ Successfully notified evaluation server: {response.status_code}")
