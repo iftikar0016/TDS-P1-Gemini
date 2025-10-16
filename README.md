@@ -1,159 +1,341 @@
 # 🚀 Web App Generator API
 
-FastAPI application that generates web applications using Gemini AI and deploys them to GitHub Pages.
+A FastAPI-based service that automatically generates web applications using Google's Gemini AI, deploys them to GitHub, and publishes them via GitHub Pages. Built for the TDS (Tools in Data Science) project.
 
-## ✅ Current Status
+## 📋 Overview
 
-**Files Ready:**
-- ✅ main.py (443 lines) - FastAPI application
-- ✅ models.py - Data models
-- ✅ requirements.txt - Dependencies
-- ✅ .env.example - Configuration template
-- ✅ Python packages installed
+This API receives requests with application specifications, uses Gemini AI to generate complete single-file HTML applications, creates GitHub repositories, and deploys them live via GitHub Pages. It supports both initial builds and iterative revisions.
 
-**Next Steps: Configure & Run**
+### Key Features
 
-## 🔧 Quick Start
+- 🤖 **AI-Powered Generation**: Uses Gemini 2.0 Flash to generate complete web applications
+- 🔄 **Two-Round System**: Initial build (Round 1) and revision (Round 2) support
+- 📦 **Automatic Deployment**: Creates repos, commits code, enables GitHub Pages
+- 🔔 **Callback Notifications**: Notifies evaluation server with deployment details
+- ⚡ **Background Processing**: Non-blocking async task execution
+- 🔒 **Secret Authentication**: API key-based request validation
 
-### 1. Configure Environment
+## 🛠️ Tech Stack
 
-Edit the `.env` file with your credentials:
+- **Framework**: FastAPI + Uvicorn
+- **AI Model**: Google Gemini 2.0 Flash (via `google-generativeai`)
+- **GitHub Integration**: PyGithub
+- **HTTP Client**: httpx (for async callbacks)
+- **Validation**: Pydantic v2
 
-```bash
-nano .env
-# or
-code .env
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.12+
+- GitHub Personal Access Token (with `repo` scope)
+- Google Gemini API Key
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd tds-p1-gemini
+   ```
+
+2. **Create virtual environment**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables**
+   
+   Create a `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your credentials:
+   ```env
+   MY_SECRET=your-api-secret
+   GITHUB_TOKEN=ghp_your_github_token
+   GITHUB_USERNAME=your-github-username
+   GEMINI_API_KEY=your-gemini-api-key
+   ```
+
+5. **Run the server**
+   ```bash
+   uvicorn main:app --reload
+   ```
+
+The API will be available at `http://localhost:8000`
+
+## 📡 API Endpoints
+
+### `POST /api-endpoint`
+
+Main endpoint for processing web app generation requests.
+
+#### Request Format
+
+```json
+{
+  "email": "student@example.com",
+  "secret": "your-api-secret",
+  "task": "my-app-name",
+  "round": 1,
+  "nonce": "unique-correlation-id",
+  "brief": "Create a calculator app with basic operations...",
+  "checks": [
+    "Repo has MIT license",
+    "README.md is professional",
+    "App is functional"
+  ],
+  "evaluation_url": "https://example.com/notify",
+  "attachments": [
+    {
+      "name": "sample.png",
+      "url": "data:image/png;base64,iVBORw..."
+    }
+  ]
+}
 ```
 
-**Required credentials:**
+#### Response
 
-- **MY_SECRET** - Generate with: `openssl rand -hex 32`
-- **GITHUB_TOKEN** - Get from: https://github.com/settings/tokens (needs `repo` scope)
-- **GITHUB_USERNAME** - Your GitHub username
-- **GEMINI_API_KEY** - Get from: https://makersuite.google.com/app/apikey
-
-### 2. Verify Configuration
-
-```bash
-python test_setup.py
+```json
+{
+  "status": "processing",
+  "task": "my-app-name",
+  "round": 1,
+  "message": "Task 'my-app-name' (Round 1) accepted and processing in background"
+}
 ```
 
-### 3. Run the Server
+#### Evaluation Callback
 
-```bash
-python main.py
+The API sends this payload to `evaluation_url`:
+
+```json
+{
+  "email": "student@example.com",
+  "task": "my-app-name",
+  "round": 1,
+  "nonce": "unique-correlation-id",
+  "repo_url": "https://github.com/username/my-app-name",
+  "commit_sha": "abc123...",
+  "pages_url": "https://username.github.io/my-app-name/"
+}
 ```
 
-Server will run on: **http://localhost:8000**
+### `GET /health`
 
-API Documentation: **http://localhost:8000/docs**
+Health check endpoint.
 
-## 🧪 Test the API
-
-### Health Check
 ```bash
 curl http://localhost:8000/health
+# Response: {"status": "healthy"}
 ```
 
-### Test Round 1 (Build)
+### `GET /`
+
+Serves the web UI (static files from `/static`).
+
+## 🔄 Workflow
+
+### Round 1: Initial Build
+
+1. **Receive Request**: Validates secret and request format
+2. **Generate HTML**: Calls Gemini API with brief and attachments
+3. **Create Repository**: Creates public GitHub repo
+4. **Commit Files**: 
+   - `index.html` (generated app)
+   - `LICENSE` (MIT License)
+   - `README.md` (comprehensive documentation)
+5. **Enable Pages**: Activates GitHub Pages on main branch
+6. **Send Callback**: Notifies evaluation server with deployment details
+
+### Round 2: Revision
+
+1. **Receive Request**: Validates secret and request format
+2. **Fetch Existing Code**: Retrieves current `index.html` from repo
+3. **Generate Update**: Calls Gemini API with existing code + new requirements
+4. **Update Files**:
+   - `index.html` (updated app)
+   - `README.md` (updated for Round 2)
+5. **Send Callback**: Notifies evaluation server with new commit SHA
+
+## 🧪 Testing
+
+### Quick Test
+
+```bash
+# Start server
+uvicorn main:app --reload
+
+# In another terminal, run test script
+./test_api.sh
+```
+
+### Manual Testing
+
+**Round 1:**
 ```bash
 curl -X POST http://localhost:8000/api-endpoint \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "secret": "your_MY_SECRET_value",
-    "task": "my-test-app",
-    "round": 1,
-    "nonce": "test-001",
-    "brief": "Create a simple calculator with basic operations",
-    "checks": ["functionality"],
-    "evaluation_url": "https://httpbin.org/post",
-    "attachments": ["Use modern CSS"]
-  }'
+  -d @test_round1.json
 ```
 
-## 📚 How It Works
-
-### Round 1: Build & Deploy
-1. Receives request with app description
-2. Gemini AI generates HTML/CSS/JS
-3. Creates GitHub repository
-4. Commits files (index.html, LICENSE, README.md)
-5. Enables GitHub Pages
-6. Notifies evaluation server
-7. **Result**: Live app at `https://yourusername.github.io/app-name/`
-
-### Round 2: Revise & Update
-1. Receives request with changes
-2. Fetches existing code
-3. Gemini AI updates the code
-4. Updates repository
-5. Notifies evaluation server
-6. **Result**: Updated live app
-
-## 📁 Project Structure
-
+**Round 2:**
+```bash
+curl -X POST http://localhost:8000/api-endpoint \
+  -H "Content-Type: application/json" \
+  -d @test_round2.json
 ```
-.
-├── main.py              # FastAPI application
-├── models.py            # Pydantic models
-├── requirements.txt     # Dependencies
-├── .env                 # Your credentials (DO NOT COMMIT)
-├── .env.example         # Template
-├── test_setup.py        # Setup verification
-└── README.md           # This file
-```
+
+### Test Files Included
+
+- `test_round1.json` - Example Round 1 request (Hello World app)
+- `test_round2.json` - Example Round 2 request (adds features)
+- `test_api.sh` - Automated test script
+
+## 📚 Documentation
+
+### Technical Docs
+
+- **[NONCE_HANDLING.md](./NONCE_HANDLING.md)** - Detailed explanation of nonce/correlation ID handling
+
+### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `email` | string | ✅ | Student/user email |
+| `secret` | string | ✅ | API authentication secret |
+| `task` | string | ✅ | Unique task/repo name |
+| `round` | int | ✅ | Round number (1 or 2) |
+| `nonce` | string | ✅ | Correlation ID for callbacks |
+| `brief` | string | ✅ | Application requirements |
+| `checks` | string[] | ✅ | Evaluation criteria |
+| `evaluation_url` | string | ✅ | Callback URL for results |
+| `attachments` | object[] | ❌ | Optional files (name + data URI) |
+
+### Evaluation Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `email` | string | User email (from request) |
+| `task` | string | Task name (from request) |
+| `round` | int | Round number (from request) |
+| `nonce` | string | Correlation ID (from request) |
+| `repo_url` | string | GitHub repository URL |
+| `commit_sha` | string | Latest commit SHA |
+| `pages_url` | string | Live GitHub Pages URL |
 
 ## 🔒 Security
 
-- Never commit `.env` to git
-- Use strong secrets
-- GitHub token should have minimal permissions (only `repo`)
+### Authentication
 
-## �� API Endpoints
+- API uses secret-based authentication (`MY_SECRET` env variable)
+- All requests must include matching `secret` field
+- Returns `401 Unauthorized` for invalid secrets
 
-- `GET /` - Service info
-- `GET /health` - Health check
-- `POST /api-endpoint` - Main endpoint (requires authentication)
-- `GET /docs` - Interactive API documentation
+### Environment Variables
 
-## 🎯 What You Need
+Never commit `.env` file. Always use `.env.example` as template.
 
-### Before Running:
-1. ✅ Python 3.8+ (you have 3.12.3 ✓)
-2. ✅ Dependencies installed ✓
-3. ⚠️  Configure .env file
-4. ⚠️  Get credentials (see above)
+### Nonce Handling
 
-### To Get Credentials:
-Run: `cat .env.example` to see what you need
+- Nonce is a **pass-through correlation ID**
+- No validation or deduplication by this API
+- Evaluation server should implement nonce tracking
+- See [NONCE_HANDLING.md](./NONCE_HANDLING.md) for details
 
-## 🚀 Ready to Go?
+## 🔧 Configuration
 
-```bash
-# 1. Configure
-nano .env
+### Environment Variables
 
-# 2. Verify
-python test_setup.py
+```env
+# Required
+MY_SECRET=your-api-secret                    # Request authentication
+GITHUB_TOKEN=ghp_xxxxx                       # GitHub PAT with repo scope
+GITHUB_USERNAME=your-username                # GitHub username
+GEMINI_API_KEY=AIzaSyxxxx                   # Gemini API key
 
-# 3. Run
-python main.py
-
-# 4. Test
-curl http://localhost:8000/health
+# Optional
+WEBHOOK_SECRET=default_webhook_secret        # Future webhook validation
+PORT=8000                                     # Server port (default: 8000)
 ```
 
-Visit http://localhost:8000/docs for interactive API documentation!
+### Gemini Model
 
-## 📞 Need Help?
+Currently uses `gemini-2.0-flash-exp`. To change model, edit `main.py`:
 
-Check that:
-- `.env` file has all required values
-- GitHub token has `repo` scope
-- Gemini API key is valid
-- Port 8000 is not in use
+```python
+model = genai.GenerativeModel('gemini-2.0-flash-exp')  # Line 73
+```
+
+## �� Project Structure
+
+```
+.
+├── main.py                 # FastAPI application & core logic
+├── models.py              # Pydantic data models
+├── requirements.txt       # Python dependencies
+├── .env.example          # Environment template
+├── README.md             # This file
+├── NONCE_HANDLING.md     # Nonce documentation
+├── static/               # Web UI assets
+│   ├── index.html
+│   ├── script.js
+│   └── style.css
+├── test_round1.json      # Round 1 test request
+├── test_round2.json      # Round 2 test request
+└── test_api.sh           # Test automation script
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**401 Unauthorized**
+- Check `MY_SECRET` in `.env` matches request `secret` field
+
+**Gemini API Error**
+- Verify `GEMINI_API_KEY` is valid
+- Check API quota/limits
+
+**GitHub API Error**
+- Verify `GITHUB_TOKEN` has `repo` scope
+- Check token hasn't expired
+
+**Pages Not Enabled**
+- GitHub Pages may take 1-2 minutes to activate
+- Check repository settings manually
+
+### Debug Mode
+
+Run with verbose logging:
+```bash
+uvicorn main:app --reload --log-level debug
+```
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📧 Contact
+
+For issues or questions, please open an issue on GitHub.
 
 ---
 
-**Status**: Ready to configure and run! 🎉
+**Built with ❤️ for TDS Project**

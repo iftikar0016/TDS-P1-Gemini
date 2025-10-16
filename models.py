@@ -2,6 +2,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+class Attachment(BaseModel):
+    name: str
+    url: str
+
+
 class TaskRequest(BaseModel):
     email: str
     secret: str
@@ -11,7 +16,7 @@ class TaskRequest(BaseModel):
     brief: str
     checks: List[str]
     evaluation_url: str
-    attachments: Optional[List[str]] = None
+    attachments: Optional[List[Attachment]] = None
 
 
 class EvaluationPayload(BaseModel):

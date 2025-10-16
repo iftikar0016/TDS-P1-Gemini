@@ -67,7 +67,8 @@ Requirements:
 """
         
         if attachments:
-            prompt += f"\n\nAdditional context/attachments:\n{chr(10).join(attachments)}"
+            attachment_info = "\n".join([f"- {att.name}: {att.url}" for att in attachments])
+            prompt += f"\n\nAdditional context/attachments:\n{attachment_info}"
     
     try:
         model = genai.GenerativeModel('gemini-2.0-flash-exp')
